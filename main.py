@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from sqlalchemy import text
 from app.database import async_session_maker, Base, engine
-from app.routers import categories_router, locations_router, posts_router, comments_router
+from app.routers import categories_router, locations_router, posts_router, comments_router, users_router
 
 # Инициализация приложения FastAPI
 app = FastAPI(
@@ -16,6 +16,7 @@ app.include_router(categories_router)
 app.include_router(locations_router)
 app.include_router(posts_router)
 app.include_router(comments_router)
+app.include_router(users_router)
 
 
 # Создание таблиц в БД при запуске приложения
