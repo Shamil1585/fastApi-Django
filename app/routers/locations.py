@@ -1,3 +1,4 @@
+# Импорт необходимых модулей
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -7,17 +8,18 @@ from app.database import get_db
 from app.models.location import Location
 from app.schemas.location import LocationCreate, LocationUpdate, LocationResponse
 
+# Создание роутера с префиксом и тегом для документации
 router = APIRouter(prefix="/locations", tags=["Locations"])
 
 
-# GET все местоположения
+# GET запрос - получить все местоположения
 @router.get("/", response_model=List[LocationResponse])
 async def get_locations(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Location))
     return result.scalars().all()
 
 
-# GET одно местоположение по ID
+# GET запрос - получить одно местоположение по ID
 @router.get("/{location_id}", response_model=LocationResponse)
 async def get_location(location_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Location).where(Location.id == location_id))
@@ -29,7 +31,7 @@ async def get_location(location_id: int, db: AsyncSession = Depends(get_db)):
     return location
 
 
-# POST создать местоположение
+# POST запрос - создать новое местоположение
 @router.post("/", response_model=LocationResponse)
 async def create_location(
     location: LocationCreate,
@@ -42,7 +44,7 @@ async def create_location(
     return new_location
 
 
-# PUT обновить местоположение
+# PUT запрос - обновить местоположение
 @router.put("/{location_id}", response_model=LocationResponse)
 async def update_location(
     location_id: int,
@@ -64,7 +66,7 @@ async def update_location(
     return db_location
 
 
-# DELETE удалить местоположение
+# DELETE запрос - удалить местоположение
 @router.delete("/{location_id}")
 async def delete_location(location_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Location).where(Location.id == location_id))

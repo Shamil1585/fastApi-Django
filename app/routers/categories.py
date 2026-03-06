@@ -1,3 +1,4 @@
+# Импорт необходимых модулей
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -7,17 +8,18 @@ from app.database import get_db
 from app.models.category import Category
 from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse
 
+# Создание роутера с префиксом и тегом для документации
 router = APIRouter(prefix="/categories", tags=["Categories"])
 
 
-# GET все категории
+# GET запрос - получить все категории
 @router.get("/", response_model=List[CategoryResponse])
 async def get_categories(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Category))
     return result.scalars().all()
 
 
-# GET одна категория по ID
+# GET запрос - получить одну категорию по ID
 @router.get("/{category_id}", response_model=CategoryResponse)
 async def get_category(category_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Category).where(Category.id == category_id))
@@ -29,7 +31,7 @@ async def get_category(category_id: int, db: AsyncSession = Depends(get_db)):
     return category
 
 
-# POST создать категорию
+# POST запрос - создать новую категорию
 @router.post("/", response_model=CategoryResponse)
 async def create_category(
     category: CategoryCreate,
@@ -42,7 +44,7 @@ async def create_category(
     return new_category
 
 
-# PUT обновить категорию
+# PUT запрос - обновить категорию
 @router.put("/{category_id}", response_model=CategoryResponse)
 async def update_category(
     category_id: int,
@@ -53,27 +55,4 @@ async def update_category(
     db_category = result.scalar_one_or_none()
     
     if not db_category:
-        raise HTTPException(status_code=404, detail="Category not found")
-    
-    update_data = category.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(db_category, field, value)
-    
-    await db.commit()
-    await db.refresh(db_category)
-    return db_category
-
-
-# DELETE удалить категорию
-@router.delete("/{category_id}")
-async def delete_category(category_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Category).where(Category.id == category_id))
-    category = result.scalar_one_or_none()
-    
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
-    
-    await db.delete(category)
-    await db.commit()
-    
-    return {"message": "Category deleted successfully"}
+        raise
