@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from sqlalchemy import text
 from app.database import async_session_maker, Base, engine
+from app.routers import categories_router, locations_router
 
 # Инициализация приложения
 app = FastAPI(
@@ -8,6 +9,10 @@ app = FastAPI(
     description="Migrated from Django to FastAPI",
     version="1.0.0"
 )
+
+# Подключение роутеров
+app.include_router(categories_router)
+app.include_router(locations_router)
 
 
 # Создание таблиц при запуске
