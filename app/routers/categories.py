@@ -1,58 +1,67 @@
-# Импорт необходимых модулей
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from typing import List
 
-from app.database import get_db
-from app.models.category import Category
+from app.dependencies import get_category_repo
+from app.repositories.category import CategoryRepository
 from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse
 
-# Создание роутера с префиксом и тегом для документации
 router = APIRouter(prefix="/categories", tags=["Categories"])
 
 
-# GET запрос - получить все категории
 @router.get("/", response_model=List[CategoryResponse])
-async def get_categories(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Category))
-    return result.scalars().all()
+async def get_categories(
+    repo: CategoryRepository = Depends(get_category_repo)
+):
+    """Получить все категории"""
+    return await repo.get_all()
 
 
-# GET запрос - получить одну категорию по ID
 @router.get("/{category_id}", response_model=CategoryResponse)
-async def get_category(category_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Category).where(Category.id == category_id))
-    category = result.scalar_one_or_none()
-    
+async def get_category(
+    category_id: int,
+    repo: CategoryRepository = Depends(get_category_repo)
+):
+    """Получить категорию по ID"""
+    category = await repo.get_by_id(category_id)
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
-    
     return category
 
 
-# POST запрос - создать новую категорию
 @router.post("/", response_model=CategoryResponse)
 async def create_category(
     category: CategoryCreate,
-    db: AsyncSession = Depends(get_db)
+    repo: CategoryRepository = Depends(get_category_repo)
 ):
-    new_category = Category(**category.model_dump())
-    db.add(new_category)
-    await db.commit()
-    await db.refresh(new_category)
-    return new_category
+    """Создать новую категорию"""
+    # Проверка уникальности slug
+    existing = await repo.get_by_slug(category.slug)
+    if existing:
+        raise HTTPException(status_code=400, detail="Slug already exists")
+    return await repo.create(category)
 
 
-# PUT запрос - обновить категорию
 @router.put("/{category_id}", response_model=CategoryResponse)
 async def update_category(
     category_id: int,
     category: CategoryUpdate,
-    db: AsyncSession = Depends(get_db)
+    repo: CategoryRepository = Depends(get_category_repo)
 ):
-    result = await db.execute(select(Category).where(Category.id == category_id))
-    db_category = result.scalar_one_or_none()
-    
+    """Обновить категорию"""
+    db_category = await repo.get_by_id(category_id)
     if not db_category:
-        raise
+        raise HTTPException(status_code=404, detail="Category not found")
+    return await repo.update(db_category, category)
+
+
+@router.delete("/{category_id}")
+async def delete_category(
+    category_id: int,
+    repo: CategoryRepository = Depends(get_category_repo)
+):
+    """Удалить категорию"""
+    db_category = await repo.get_by_id(category_id)
+    if not db_category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    await repo.delete(db_category)
+    return {"message": "Category deleted successfully"}

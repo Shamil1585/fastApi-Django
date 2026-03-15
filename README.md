@@ -9,7 +9,7 @@ API для блога, мигрированное с Django на FastAPI.
 
 ## Установка
 
-```bash
+
 # Создание виртуального окружения
 python3 -m venv venv
 source venv/bin/activate
