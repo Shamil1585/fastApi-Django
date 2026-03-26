@@ -19,6 +19,8 @@ class Post(Base):
     location_id = Column(Integer, ForeignKey("locations.id"), nullable=True)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
 
+    rating = Column(Integer, default=0, nullable=True)
+
     author = relationship("User", back_populates="posts")
     location = relationship("Location", back_populates="posts")
     category = relationship("Category", back_populates="posts")

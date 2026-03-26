@@ -30,4 +30,4 @@ class CategoryResponse(CategoryBase):
     created_at: datetime
 
     class Config:
-        from_attributes = True  # Разрешить чтение из SQLAlchemy моделей
+        from_attributes = True  
