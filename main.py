@@ -1,49 +1,49 @@
-# Импорт необходимых модулей
-from fastapi import FastAPI
-from sqlalchemy import text
-from app.database import async_session_maker, Base, engine
-from app.routers import categories_router, locations_router, posts_router, comments_router, users_router
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from app.database import engine
+from app.routers import categories, locations, users, posts, comments
+from app.exceptions import AppException
 
-# Инициализация приложения FastAPI
 app = FastAPI(
     title="Blog API",
     description="Migrated from Django to FastAPI",
     version="1.0.0"
 )
 
-# Подключение роутеров (эндпоинтов)
-app.include_router(categories_router)
-app.include_router(locations_router)
-app.include_router(posts_router)
-app.include_router(comments_router)
-app.include_router(users_router)
+
+# === Глобальный обработчик кастомных исключений ===
+@app.exception_handler(AppException)
+async def app_exception_handler(request: Request, exc: AppException):
+    """Единый формат ошибок для всех кастомных исключений"""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=exc.to_dict()
+    )
 
 
-# Создание таблиц в БД при запуске приложения
-@app.on_event("startup")
-async def startup_event():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+# Подключаем роутеры
+app.include_router(categories.router)
+app.include_router(locations.router)
+app.include_router(users.router)
+app.include_router(posts.router)
+app.include_router(comments.router)
 
 
-# Корневой эндпоинт (главная страница)
 @app.get("/")
 async def root():
     return {"message": "Blog API is running"}
 
 
-# Эндпоинт проверки здоровья сервиса
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
 
 
-# Эндпоинт проверки подключения к базе данных
 @app.get("/db-check")
-async def check_database():
+async def db_check():
     try:
-        async with async_session_maker() as session:
-            await session.execute(text("SELECT 1"))
+        async with engine.begin() as conn:
+            await conn.execute("SELECT 1")
         return {"status": "ok", "database": "connected"}
     except Exception as e:
-        return {"status": "error", "database": str(e)}
+        return {"status": "error", "database": "disconnected", "error": str(e)}
