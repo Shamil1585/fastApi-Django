@@ -5,10 +5,11 @@ from typing import AsyncGenerator
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str
+    DATABASE_URL: str = "sqlite+aiosqlite:///./blog.db"
 
     class Config:
         env_file = ".env"
+        extra = "allow"
 
 
 settings = Settings()

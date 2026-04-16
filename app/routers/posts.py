@@ -1,124 +1,70 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
-from sqlalchemy.exc import SQLAlchemyError
 
-from app.dependencies import get_post_repo
+from app.dependencies import get_post_repo, get_current_user
 from app.repositories.post import PostRepository
-from app.domain.use_cases.post import PostUseCase
 from app.schemas.post import PostCreate, PostUpdate, PostResponse
-from app.exceptions import AppException, NotFoundException, ValidationError, DatabaseError, ConflictError
+from app.models.user import User
 
 router = APIRouter(prefix="/posts", tags=["Posts"])
 
 
-# === Dependency для создания Use Case ===
-def get_post_use_case(repo: PostRepository = Depends(get_post_repo)) -> PostUseCase:
-    """Создаёт PostUseCase с внедрённым репозиторием"""
-    return PostUseCase(post_repo=repo)
-
-
-# === Helper для конвертации исключений в HTTPException ===
-def handle_app_exception(exc: AppException) -> HTTPException:
-    """Конвертирует кастомное исключение в HTTPException с правильным статусом"""
-    return HTTPException(
-        status_code=exc.status_code,
-        detail=exc.to_dict()
-    )
-
-
 @router.get("/", response_model=List[PostResponse])
-async def get_posts(
-    use_case: PostUseCase = Depends(get_post_use_case)
-):
-    """Получить все посты"""
-    try:
-        return await use_case.get_all_posts()
-    except DatabaseError as e:
-        raise handle_app_exception(e)
-    except AppException as e:
-        raise handle_app_exception(e)
+async def get_posts(repo: PostRepository = Depends(get_post_repo)):
+    """Публично: получить все посты"""
+    return await repo.get_all()
 
 
 @router.get("/{post_id}", response_model=PostResponse)
 async def get_post(
     post_id: int,
-    use_case: PostUseCase = Depends(get_post_use_case)
+    repo: PostRepository = Depends(get_post_repo)
 ):
-    """Получить пост по ID"""
-    try:
-        return await use_case.get_post_by_id(post_id)
-    except NotFoundException as e:
-        raise handle_app_exception(e)
-    except DatabaseError as e:
-        raise handle_app_exception(e)
-    except AppException as e:
-        raise handle_app_exception(e)
+    """Публично: получить пост по ID"""
+    post = await repo.get_by_id(post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return post
 
 
 @router.post("/", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
 async def create_post(
-    post: PostCreate,
-    use_case: PostUseCase = Depends(get_post_use_case)
+    post_data: PostCreate,
+    repo: PostRepository = Depends(get_post_repo),
+    current_user: User = Depends(get_current_user)
 ):
-    """Создать новый пост"""
-    try:
-        return await use_case.create_post(post)
-    except ValidationError as e:
-        raise handle_app_exception(e)
-    except ConflictError as e:
-        raise handle_app_exception(e)
-    except DatabaseError as e:
-        raise handle_app_exception(e)
-    except AppException as e:
-        raise handle_app_exception(e)
+    """Только авторизованные: создать пост"""
+    post_data.author_id = current_user.id
+    return await repo.create(post_data)
 
 
 @router.put("/{post_id}", response_model=PostResponse)
 async def update_post(
     post_id: int,
-    post: PostUpdate,
-    use_case: PostUseCase = Depends(get_post_use_case)
+    post_data: PostUpdate,
+    repo: PostRepository = Depends(get_post_repo),
+    current_user: User = Depends(get_current_user)
 ):
-    """Обновить пост"""
-    try:
-        return await use_case.update_post(post_id, post)
-    except NotFoundException as e:
-        raise handle_app_exception(e)
-    except ValidationError as e:
-        raise handle_app_exception(e)
-    except DatabaseError as e:
-        raise handle_app_exception(e)
-    except AppException as e:
-        raise handle_app_exception(e)
+    """Только автор: обновить пост"""
+    db_post = await repo.get_by_id(post_id)
+    if not db_post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if db_post.author_id != current_user.id:
+        raise HTTPException(status_code=403, detail={"message": "Только автор может редактировать"})
+    return await repo.update(db_post, post_data)
 
 
 @router.delete("/{post_id}", status_code=status.HTTP_200_OK)
 async def delete_post(
     post_id: int,
-    use_case: PostUseCase = Depends(get_post_use_case)
+    repo: PostRepository = Depends(get_post_repo),
+    current_user: User = Depends(get_current_user)
 ):
-    """Удалить пост"""
-    try:
-        return await use_case.delete_post(post_id)
-    except NotFoundException as e:
-        raise handle_app_exception(e)
-    except DatabaseError as e:
-        raise handle_app_exception(e)
-    except AppException as e:
-        raise handle_app_exception(e)
-
-
-@router.get("/author/{author_id}", response_model=List[PostResponse])
-async def get_posts_by_author(
-    author_id: int,
-    use_case: PostUseCase = Depends(get_post_use_case)
-):
-    """Получить посты автора"""
-    try:
-        return await use_case.get_posts_by_author(author_id)
-    except ValidationError as e:
-        raise handle_app_exception(e)
-    except DatabaseError as e:
-        raise handle_app_exception(e)
-    except AppException as e:
-        raise handle_app_exception(e)
+    """Только автор: удалить пост"""
+    db_post = await repo.get_by_id(post_id)
+    if not db_post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if db_post.author_id != current_user.id:
+        raise HTTPException(status_code=403, detail={"message": "Только автор может удалять"})
+    await repo.delete(db_post)
+    return {"message": "Post deleted", "post_id": post_id}
