@@ -1,12 +1,12 @@
-# Должен экспортировать все классы:
 from app.exceptions.base import (
     AppException,
     NotFoundException,
     ValidationError,
     DatabaseError,
     ConflictError,
-    ForbiddenError,
 )
+from app.exceptions.handlers import register_exception_handlers
+from app.exceptions.validation import register_validation_handler
 
 __all__ = [
     "AppException",
@@ -14,5 +14,6 @@ __all__ = [
     "ValidationError",
     "DatabaseError",
     "ConflictError",
-    "ForbiddenError",
+    "register_exception_handlers",
+    "register_validation_handler",
 ]
