@@ -10,3 +10,15 @@ venv/
 .idea/
 .vscode/
 .env
+.env
+.env
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.db
+venv/
+.venv/
+.DS_Store
+.idea/
+.vscode/

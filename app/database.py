@@ -1,41 +1,28 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker, declarative_base
-from pydantic_settings import BaseSettings
-from typing import AsyncGenerator
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import declarative_base
+from app.core.config import settings
 
+# Объявляем Base здесь, чтобы все модели могли его импортировать
+Base = declarative_base()
 
-class Settings(BaseSettings):
-    DATABASE_URL: str = "sqlite+aiosqlite:///./blog.db"
+# Движок
+engine = create_async_engine(settings.DATABASE_URL, echo=False, pool_pre_ping=True)
 
-    class Config:
-        env_file = ".env"
-        extra = "allow"
-
-
-settings = Settings()
-
-# Создание асинхронного движка
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=True,  # Логирование SQL-запросов (для отладки)
-)
-
-# Сессия для работы с БД
-async_session_maker = sessionmaker(
+AsyncSessionLocal = async_sessionmaker(
     engine,
     class_=AsyncSession,
     expire_on_commit=False,
+    autocommit=False,
+    autoflush=False
 )
 
-# Базовый класс для моделей
-Base = declarative_base()
-
-
-# Функция для получения сессии БД
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """
-    Генератор сессий базы данных.
-    Используется в зависимостях FastAPI.
-    """
-    async with async_session_maker() as session:
-        yield session
+async def get_db():
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()

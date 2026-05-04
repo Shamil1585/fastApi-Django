@@ -1,8 +1,19 @@
+import logging
+import sys
 from fastapi import FastAPI
 from app.database import engine
 from app.routers import categories, locations, users, posts, comments, auth 
 from app.exceptions.handlers import register_exception_handlers
 from app.exceptions.validation import register_validation_handler
+
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger(__name__)
+
 
 app = FastAPI(
     title="Blog API",
